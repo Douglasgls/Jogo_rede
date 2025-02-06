@@ -13,6 +13,7 @@ public class Server {
 		ArrayList<Jogador> jogadores = new ArrayList<>();
 		DatagramSocket serverSocket = new DatagramSocket(3000);
 		byte[] receivedData = new byte[1024];
+		
 
 		limparRecivedData(receivedData);
 		estabelecerConexao(serverSocket, receivedData, jogadores);
@@ -84,7 +85,17 @@ public class Server {
 
 	public static void enviaPalavraEmbaralhada(DatagramSocket serverSocket, ArrayList<Jogador> jogadores)
 			throws IOException {
-		byte[] sendData = "Desenbaralhe a palavra: caoal".getBytes();
+		
+		Embaralhador embaralhador = new Embaralhador();
+		CorridaPalavras corridaPalavras = new CorridaPalavras();
+		
+		String palavraSelecionada = corridaPalavras.palavrasParaJogadores();
+		
+		String palavraSelecionadaEmbaralhada = Embaralhador.shuffle(palavraSelecionada);
+		
+		String mensagem = "Desembaralhe a palavra: " + palavraSelecionadaEmbaralhada;
+	    byte[] sendData = mensagem.getBytes();
+		
 		for (Jogador jogador : jogadores) {
 			DatagramPacket sendPacket = new DatagramPacket(sendData, sendData.length, jogador.getIp(),
 					jogador.getPort());
