@@ -13,19 +13,18 @@ public class Server {
 		ArrayList<Jogador> jogadores = new ArrayList<>();
 		DatagramSocket serverSocket = new DatagramSocket(3000);
 		byte[] receivedData = new byte[1024];
-		
+
 		limparRecivedData(receivedData);
-		estabelecerConexao(serverSocket,receivedData,jogadores);
+		estabelecerConexao(serverSocket, receivedData, jogadores);
 		limparRecivedData(receivedData);
-		iniciarJogo(serverSocket, jogadores,receivedData);
-		
+		iniciarJogo(serverSocket, jogadores, receivedData);
 	}
-	
-	
-	public static void estabelecerConexao(DatagramSocket serverSocket, byte[] receivedData, ArrayList<Jogador> jogadores) throws Exception {
+
+	public static void estabelecerConexao(DatagramSocket serverSocket, byte[] receivedData,
+			ArrayList<Jogador> jogadores) throws Exception {
 		int jogadoresProntos = 0;
 		System.out.println("UDP server rodando!");
-		
+
 		while (jogadoresProntos < 2) {
 			DatagramPacket receivePacket = new DatagramPacket(receivedData, receivedData.length);
 			limparRecivedData(receivedData);
@@ -83,8 +82,9 @@ public class Server {
 		return null;
 	}
 
-	public static void solicitaNum(DatagramSocket serverSocket, ArrayList<Jogador> jogadores) throws IOException {
-		byte[] sendData = "Insira um numero de 0 a 3: ".getBytes();
+	public static void enviaPalavraEmbaralhada(DatagramSocket serverSocket, ArrayList<Jogador> jogadores)
+			throws IOException {
+		byte[] sendData = "Desenbaralhe a palavra: caoal".getBytes();
 		for (Jogador jogador : jogadores) {
 			DatagramPacket sendPacket = new DatagramPacket(sendData, sendData.length, jogador.getIp(),
 					jogador.getPort());
@@ -93,42 +93,27 @@ public class Server {
 
 	}
 
-	public static void iniciarJogo(DatagramSocket serverSocket, ArrayList<Jogador> jogadores,byte[] receivedData) throws Exception {
-		limparRecivedData(receivedData);
-		byte[] sendData = "Iniciando jogo...".getBytes();
-		System.out.println("Todos os jogadores estão prontos. Iniciando o jogo!");
-
-		for (Jogador jogador : jogadores) {
-			DatagramPacket sendPacket = new DatagramPacket(sendData, sendData.length, jogador.getIp(),
-					jogador.getPort());
-			serverSocket.send(sendPacket);
-		}
-
-		solicitaNum(serverSocket, jogadores);
+	public static void iniciarJogo(DatagramSocket serverSocket, ArrayList<Jogador> jogadores, byte[] receivedData) throws Exception {
 		
-		limparRecivedData(receivedData);
-		int respostasRecebidas = 0;
-		while (respostasRecebidas < jogadores.size()) {
-			System.out.println("Aguardando respostas de " + jogadores.size() + " jogadores...");
+			byte[] sendData = "Iniciando jogo...".getBytes();
+			System.out.println("Todos os jogadores estão prontos. Iniciando o jogo!");
 			
-			
-			DatagramPacket receivePacket = new DatagramPacket(receivedData, receivedData.length);
-			serverSocket.receive(receivePacket);
-
-			String resposta = new String(receivePacket.getData()).trim();
-
-			System.out.println("Recebido do cliente: " + resposta);
-
 			for (Jogador jogador : jogadores) {
-				if (jogador.getIp().equals(receivePacket.getAddress())
-						&& jogador.getPort() == receivePacket.getPort()) {
-					System.out.println(
-							"Jogador " + jogador.getIp() + ":" + jogador.getPort() + " respondeu: " + resposta);
-					respostasRecebidas++;
-					break;
-				}
+				DatagramPacket sendPacket = new DatagramPacket(sendData, sendData.length, jogador.getIp(), jogador.getPort());
+				serverSocket.send(sendPacket);
 			}
+			
+			enviaPalavraEmbaralhada(serverSocket, jogadores);
+			
+			while(true) {
+				for (int i = 0; i < jogadores.size(); i++) {
+					DatagramPacket receivePacket = new DatagramPacket(receivedData, receivedData.length);
+					serverSocket.receive(receivePacket);
+					String receiveSentence = new String(receivePacket.getData(), 0, receivePacket.getLength()).trim();
+					
+					System.out.println("Jogador " + (i + 1) + " respondeu: " + receiveSentence);
+					limparRecivedData(receivedData);
+				}
 		}
-		System.out.println("Todas as respostas foram recebidas!");
 	}
 }

@@ -34,32 +34,34 @@ public class Cliente {
     }
 
     public static void iniciar(DatagramSocket clientSocket, InetAddress ipAddress, int port, byte[] receivedData) throws Exception {
-        limparRecivedData(receivedData);
         System.out.println("Pressione Enter para iniciar o jogo");
-        System.in.read();
+        new BufferedReader(new InputStreamReader(System.in)).readLine();
         
         byte[] sendData = "Iniciar".getBytes();
         DatagramPacket sendPacket = new DatagramPacket(sendData, sendData.length, ipAddress, port);
         clientSocket.send(sendPacket);
+        limparRecivedData(receivedData);
  
-        BufferedReader keyboardReader = new BufferedReader(new InputStreamReader(System.in));
-                
-        while (true) {
-            DatagramPacket receivePacket = new DatagramPacket(receivedData, receivedData.length);
-            clientSocket.receive(receivePacket);
-            
-            String receiveSentence = new String(receivePacket.getData(),0, receivePacket.getLength()).trim();
-            
-            System.out.println(receiveSentence);
-
-            if (receiveSentence.equals("Insira um numero de 0 a 3: ")) {
-				String numero = keyboardReader.readLine();
-				byte[] numeroBytes = numero.getBytes();
-                DatagramPacket sendPacketServer = new DatagramPacket(numeroBytes, numeroBytes.length, ipAddress, port);
-                clientSocket.send(sendPacketServer);
-            }
-        }
+        BufferedReader keyboardReader = new BufferedReader(new InputStreamReader(System.in));   
         
+        while(true) {
+    		DatagramPacket receivePacket = new DatagramPacket(receivedData, receivedData.length);
+    		clientSocket.receive(receivePacket);
+    		String receiveSentence = new String(receivePacket.getData(),0, receivePacket.getLength()).trim();
+    	        
+	        System.out.println(receiveSentence);
+	        
+	        if(receiveSentence.startsWith("Desenbaralhe a palavra: ")) {
+	    		System.out.println("Digite o texto a ser enviado");
+	    		String sentence = keyboardReader.readLine();
+	    		
+	    		byte[] resposta = sentence.getBytes();
+	    		DatagramPacket respostaPacket = new DatagramPacket(resposta, resposta.length, ipAddress, port);
+
+	    		clientSocket.send(respostaPacket);
+	    		limparRecivedData(receivedData);
+	        }
+        }
     }
 
     
