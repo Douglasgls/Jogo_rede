@@ -83,18 +83,12 @@ public class Server {
 		return null;
 	}
 
-	public static void enviaPalavraEmbaralhada(DatagramSocket serverSocket, ArrayList<Jogador> jogadores)
+	
+	public static void enviaPalavraEmbaralhada(DatagramSocket serverSocket, ArrayList<Jogador> jogadores,String palavraSelecionadaEmbaralhada)
 			throws IOException {
+		String Mensagem = "Desenbaralhe a palavra: " + palavraSelecionadaEmbaralhada;
 		
-		Embaralhador embaralhador = new Embaralhador();
-		CorridaPalavras corridaPalavras = new CorridaPalavras();
-		
-		String palavraSelecionada = corridaPalavras.palavrasParaJogadores();
-		
-		String palavraSelecionadaEmbaralhada = Embaralhador.shuffle(palavraSelecionada);
-		
-		String mensagem = "Desembaralhe a palavra: " + palavraSelecionadaEmbaralhada;
-	    byte[] sendData = mensagem.getBytes();
+		byte[] sendData = Mensagem.getBytes();
 		
 		for (Jogador jogador : jogadores) {
 			DatagramPacket sendPacket = new DatagramPacket(sendData, sendData.length, jogador.getIp(),
@@ -105,6 +99,8 @@ public class Server {
 	}
 
 	public static void iniciarJogo(DatagramSocket serverSocket, ArrayList<Jogador> jogadores, byte[] receivedData) throws Exception {
+			Embaralhador embaralhador = new Embaralhador();
+			CorridaPalavras corridaPalavras = new CorridaPalavras();
 		
 			byte[] sendData = "Iniciando jogo...".getBytes();
 			System.out.println("Todos os jogadores estão prontos. Iniciando o jogo!");
@@ -114,7 +110,13 @@ public class Server {
 				serverSocket.send(sendPacket);
 			}
 			
-			enviaPalavraEmbaralhada(serverSocket, jogadores);
+			String palavraSelecionada = corridaPalavras.palavrasParaJogadores();
+			
+			System.out.println("Palavra selecionada: " + palavraSelecionada);
+			
+			String palavraSelecionadaEmbaralhada = embaralhador.shuffle(palavraSelecionada);
+			
+			enviaPalavraEmbaralhada(serverSocket, jogadores, palavraSelecionadaEmbaralhada);
 			
 			while(true) {
 				for (int i = 0; i < jogadores.size(); i++) {
@@ -122,8 +124,22 @@ public class Server {
 					serverSocket.receive(receivePacket);
 					String receiveSentence = new String(receivePacket.getData(), 0, receivePacket.getLength()).trim();
 					
-					System.out.println("Jogador " + (i + 1) + " respondeu: " + receiveSentence);
-					limparRecivedData(receivedData);
+					
+					InetAddress ipJogador = receivePacket.getAddress();
+			        int portaJogador = receivePacket.getPort();
+			        
+			        if (corridaPalavras.comparaPalavras(palavraSelecionada, receiveSentence)) {
+			        	System.out.println("Parabéns! O jogador na Porta " + portaJogador + " acertou a palavra!");
+			        	
+			        	String mensagemVencedor = "Você acertou a palavra: " + palavraSelecionada + "!";
+			            byte[] vencedorData = mensagemVencedor.getBytes();
+			            DatagramPacket vencedorPacket = new DatagramPacket(vencedorData, vencedorData.length, ipJogador, portaJogador);
+			            serverSocket.send(vencedorPacket);
+			            
+			            // Criar Logica de enviar mensagem para outros clientes avisando que eles perderam 
+			            break;
+			        }
+					
 				}
 		}
 	}

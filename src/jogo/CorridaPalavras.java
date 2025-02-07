@@ -7,21 +7,21 @@ import java.util.Random;
 public class CorridaPalavras {
 	
 	private static ArrayList<String> palavras = new ArrayList<>(Arrays.asList(
-		    "traves",   
-		    "amores",   
-		    "carnes",   
-		    "pintor",   
-		    "torpes",   
-		    "partes",   
-		    "tremor",   
-		    "casais",   
-		    "formar",   
-		    "pontos",   
-		    "postos",   
-		    "restos",   
-		    "costas",   
-		    "montes",   
-		    "gritos"
+		    "Traves",   
+		    "Amores",   
+		    "Carnes",   
+		    "Pintor",   
+		    "Torpes",   
+		    "Partes",   
+		    "Tremor",   
+		    "Casais",   
+		    "Formar",   
+		    "Pontos",   
+		    "Postos",   
+		    "Restos",   
+		    "Costas",   
+		    "Montes",   
+		    "Gritos"
 		));
 	
 	public CorridaPalavras() {}
@@ -32,15 +32,7 @@ public class CorridaPalavras {
         return palavras.get(numeroAleatorio); 
 	}
 	
-	public Boolean comparaPalavras(String original,String chute) {
-		if(original.equals(chute)) {
-			return true;
-		}
-		return false;
+	public Boolean comparaPalavras(String original, String chute) {
+	    return original.equalsIgnoreCase(chute); 
 	}
-	
-	
-	
-	
-	
 }
