@@ -100,6 +100,7 @@ public class Server {
 	public static void Jogo(DatagramSocket serverSocket, ArrayList<Jogador> jogadores, byte[] receivedData)
 			throws Exception {
 		CorridaPalavras corridaPalavras = new CorridaPalavras();
+		Boolean alguemGanhou = false;
 
 		byte[] sendData = "Iniciando jogo...".getBytes();
 		System.out.println("Todos os jogadores estão prontos. Iniciando o jogo!");
@@ -128,6 +129,7 @@ public class Server {
 				int portaJogador = receivePacket.getPort();
 
 				if (corridaPalavras.comparaPalavras(palavraSelecionada, receiveSentence)) {
+					alguemGanhou = true;
 					System.out.println("Parabéns! O jogador na Porta " + portaJogador + " acertou a palavra!");
 
 					String mensagemVencedor = "Você acertou a palavra: " + palavraSelecionada + "!";
@@ -145,8 +147,7 @@ public class Server {
 							serverSocket.send(perdedorPacket);
 						}
 					}
-					// break;
-				} else {
+				} else if(!alguemGanhou) {
 					for (Jogador jogador : jogadores) {
 						String perderamTodos = "Você Perdeu! Os dois jogadores erraram";
 						byte[] perderamTodosData = perderamTodos.getBytes();
@@ -157,6 +158,7 @@ public class Server {
 						}
 					}
 				}
+				
 			}
 			limparRecivedData(receivedData);
 			reiniciarJogo(serverSocket, jogadores, receivedData);
@@ -172,8 +174,6 @@ public class Server {
 					jogador.getPort());
 			serverSocket.send(reiniciarPacket);
 		}
-		int jogadoresQueQueremContinuar = 0;
-
 		for (Jogador jogador : jogadores) {
 			DatagramPacket receivePacket = new DatagramPacket(receivedData, receivedData.length);
 			serverSocket.receive(receivePacket);
@@ -188,7 +188,7 @@ public class Server {
 			}
 			limparRecivedData(receivedData);
 		}
-		System.out.println("TODOS PRONTOS JOGADORES " + todosProntos(jogadores));
+		// System.out.println("TODOS PRONTOS JOGADORES " + todosProntos(jogadores));
 		if (todosProntos(jogadores)) {
 			System.out.println("Todos os jogadores querem continuar. Reiniciando o jogo!");
 			Jogo(serverSocket, jogadores, receivedData);

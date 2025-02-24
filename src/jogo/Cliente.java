@@ -101,7 +101,7 @@ public class Cliente {
 		DatagramPacket respostaPacket = new DatagramPacket(respostaData, respostaData.length, ipAddress, port);
 		clientSocket.send(respostaPacket);
 		limparRecivedData(receivedData);
-		System.out.println("RESPOSTA" + resposta);
+		// System.out.println("RESPOSTA" + resposta);
 		if (resposta.equalsIgnoreCase("Sim")) {
 			jogo(clientSocket, ipAddress, port, receivedData, "");
 		} else {
