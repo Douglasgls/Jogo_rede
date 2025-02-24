@@ -7,23 +7,16 @@ import java.util.Random;
 public class CorridaPalavras {
 	
 	private static ArrayList<String> palavras = new ArrayList<>(Arrays.asList(
-		    "Traves",   
-		    "Amores",   
-		    "Carnes",   
-		    "Pintor",   
-		    "Torpes",   
-		    "Partes",   
-		    "Tremor",   
-		    "Casais",   
-		    "Formar",   
-		    "Pontos",   
-		    "Postos",   
-		    "Restos",   
-		    "Costas",   
-		    "Montes",   
-		    "Gritos"
+		    "Brasil",   
+		    "Futuro",   
+		    "Jovens",   
+		    "Riscos",   
+		    "Planta",   
+		    "Força",      
+		    "Paz",      
+		    "Mundo",    
+		    "Sorte"
 		));
-	
 	public CorridaPalavras() {}
 	
 	public String palavrasParaJogadores() {

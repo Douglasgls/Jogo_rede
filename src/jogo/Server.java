@@ -17,7 +17,7 @@ public class Server {
 		limparRecivedData(receivedData);
 		estabelecerConexao(serverSocket, receivedData, jogadores);
 		limparRecivedData(receivedData);
-		Jogo(serverSocket, jogadores, receivedData);
+		JogoServidor(serverSocket, jogadores, receivedData);
 	}
 
 	public static void estabelecerConexao(DatagramSocket serverSocket, byte[] receivedData,
@@ -25,7 +25,7 @@ public class Server {
 		int jogadoresProntos = 0;
 		System.out.println("UDP server rodando!");
 
-		while (jogadoresProntos < 2) {
+		while (jogadoresProntos < 4) {
 			DatagramPacket receivePacket = new DatagramPacket(receivedData, receivedData.length);
 			limparRecivedData(receivedData);
 			serverSocket.receive(receivePacket);
@@ -42,7 +42,7 @@ public class Server {
 				if (mensagem.equals("Iniciar")) {
 					jogador.setPronto();
 					jogadoresProntos++;
-					iniciar(serverSocket, "Esperando o outro jogador iniciar o jogo", jogador);
+					enviarMensagem(serverSocket, " ⏳ Aguardando outro jogador para iniciar... \n\n", jogador);
 				}
 			}
 		}
@@ -54,35 +54,137 @@ public class Server {
 		if (sentence.equals("Conectar")) {
 			InetAddress ipAddress = receivePacket.getAddress();
 			int port = receivePacket.getPort();
-			byte[] sendData = "Conectado".getBytes();
+			System.out.println("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
 			System.out.println("Jogador conectado: " + ipAddress + ":" + port);
-			DatagramPacket sendPacket = new DatagramPacket(sendData, sendData.length, ipAddress, port);
-			serverSocket.send(sendPacket);
+			
+			enviarMensagem(serverSocket, "✅ Conectado ao servidor!", ipAddress, port);
 			return new Jogador(ipAddress, port);
-		} else {
-			return null;
-		}
-	}
-
-	public static void iniciar(DatagramSocket serverSocket, String mensagem, Jogador jogador) throws Exception {
-		byte[] sendData = mensagem.getBytes();
-		DatagramPacket sendPacket = new DatagramPacket(sendData, sendData.length, jogador.getIp(), jogador.getPort());
-		serverSocket.send(sendPacket);
-	}
-
-	public static void limparRecivedData(byte[] receivedData) {
-		Arrays.fill(receivedData, (byte) 0);
-	}
-
-	public static Jogador JogadorExiste(ArrayList<Jogador> jogadores, InetAddress ipVerificar, int portaVerificar) {
-		for (Jogador jogador : jogadores) {
-			if (jogador.getIp().equals(ipVerificar) && jogador.getPort() == portaVerificar) {
-				return jogador;
-			}
-		}
+		} 
 		return null;
 	}
 
+	public static void JogoServidor(DatagramSocket serverSocket, ArrayList<Jogador> jogadores, byte[] receivedData)
+			throws Exception {
+		CorridaPalavras corridaPalavras = new CorridaPalavras();
+		Boolean alguemGanhou = false;
+		int erros = 0;
+
+		enviarMensagemParaTodos(serverSocket, "Iniciando jogo...", jogadores);
+
+		String palavraSelecionada = corridaPalavras.palavrasParaJogadores();
+		System.out.println("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+		System.out.println("Palavra selecionada: " + palavraSelecionada);
+		
+		
+		String palavraSelecionadaEmbaralhada = Embaralhador.shuffle(palavraSelecionada);
+		enviaPalavraEmbaralhada(serverSocket, jogadores, palavraSelecionadaEmbaralhada);
+
+		while (true) {
+			erros = 0;
+			for (int i = 0; i < jogadores.size(); i++) {
+				DatagramPacket receivePacket = new DatagramPacket(receivedData, receivedData.length);
+				serverSocket.receive(receivePacket);
+
+				String receiveSentence = new String(receivePacket.getData(), 0, receivePacket.getLength()).trim();
+
+				InetAddress ipJogador = receivePacket.getAddress();
+				int portaJogador = receivePacket.getPort();
+
+				if (corridaPalavras.comparaPalavras(palavraSelecionada, receiveSentence) && !alguemGanhou) {
+					alguemGanhou = true;
+					System.out.println("Parabéns! O jogador na Porta " + portaJogador + " acertou a palavra!");
+					 enviarMensagem(serverSocket, "Você acertou a palavra: " + palavraSelecionada + "! 🏆", ipJogador,portaJogador);
+					 enviarMensagemParaTodosExceto(serverSocket, "Você Perdeu! O jogador de ip: " + ipJogador +
+	                            " e porta: " + portaJogador + " acertou primeiro a palavra: " + palavraSelecionada + "!", jogadores, ipJogador, portaJogador);
+				} else {
+					erros++;
+				}
+				if (!alguemGanhou && erros == jogadores.size()) {
+					enviarMensagemParaTodos(serverSocket, "Você Perdeu! Todos os + " + jogadores.size() + "jogadores erraram", jogadores);
+				}
+				limparRecivedData(receivedData);
+			}
+			reiniciarJogo(serverSocket, jogadores, receivedData);
+		}
+	}
+
+	public static void reiniciarJogo(DatagramSocket serverSocket, ArrayList<Jogador> jogadores, byte[] receivedData)
+			throws Exception {
+		String mensagemReiniciar = "Quer jogar novamente? Responda com 'Sim' ou 'Nao'.";
+		byte[] reiniciarData = mensagemReiniciar.getBytes();
+		for (Jogador jogador : jogadores) {
+			DatagramPacket reiniciarPacket = new DatagramPacket(reiniciarData, reiniciarData.length, jogador.getIp(),
+					jogador.getPort());
+			serverSocket.send(reiniciarPacket);
+		}
+
+		for (Jogador jogador : jogadores) {
+			DatagramPacket receivePacket = new DatagramPacket(receivedData, receivedData.length);
+			serverSocket.receive(receivePacket);
+			String resposta = new String(receivePacket.getData(), 0, receivePacket.getLength()).trim();
+
+			// System.out.println("JOGADOR " + jogador.getIp() + ":" + jogador.getPort() + "
+			// RESPONDEU: " + resposta);
+
+			if (resposta.equalsIgnoreCase("Sim")) {
+				jogador.setPronto();
+			} else {
+				jogador.setNaoPronto();
+			}
+
+			limparRecivedData(receivedData);
+		}
+		// System.out.println("TODOS PRONTOS JOGADORES " + todosProntos(jogadores));
+		if (todosProntos(jogadores)) {
+			System.out.println("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+			System.out.println("Todos os jogadores querem continuar. Reiniciando o jogo!");
+			JogoServidor(serverSocket, jogadores, receivedData);
+		} else {
+			enviarMensagemParaTodos(serverSocket, "Nem todos os jogadores quiseram continuar. Encerrando o jogo.",
+					jogadores);
+		}
+	}
+	
+	public static void limparRecivedData(byte[] receivedData) {
+		Arrays.fill(receivedData, (byte) 0);
+	}
+	
+	public static boolean todosProntos(ArrayList<Jogador> jogadores) {
+		for (Jogador jogador : jogadores) {
+			if (jogador.getPronto() == false) {
+				return false;
+			}
+		}
+		return true;
+	}
+
+	public static void enviarMensagem(DatagramSocket serverSocket, String mensagem, Jogador jogador)
+			throws IOException {
+		enviarMensagem(serverSocket, mensagem, jogador.getIp(), jogador.getPort());
+	}
+
+	public static void enviarMensagem(DatagramSocket serverSocket, String mensagem, InetAddress ip, int porta)
+			throws IOException {
+		byte[] sendData = mensagem.getBytes();
+		serverSocket.send(new DatagramPacket(sendData, sendData.length, ip, porta));
+	}
+
+	public static void enviarMensagemParaTodos(DatagramSocket serverSocket, String mensagem,
+			ArrayList<Jogador> jogadores) throws IOException {
+		for (Jogador jogador : jogadores) {
+			enviarMensagem(serverSocket, mensagem, jogador);
+		}
+	}
+
+	public static void enviarMensagemParaTodosExceto(DatagramSocket serverSocket, String mensagem,
+			ArrayList<Jogador> jogadores, InetAddress ip, int porta) throws IOException {
+		for (Jogador jogador : jogadores) {
+			if (jogador.getIp() != ip && jogador.getPort() != porta) {
+				enviarMensagem(serverSocket, mensagem, jogador);
+			}
+		}
+	}
+	
 	public static void enviaPalavraEmbaralhada(DatagramSocket serverSocket, ArrayList<Jogador> jogadores,
 			String palavraSelecionadaEmbaralhada) throws IOException {
 		String Mensagem = "Desenbaralhe a palavra: " + palavraSelecionadaEmbaralhada;
@@ -94,121 +196,15 @@ public class Server {
 					jogador.getPort());
 			serverSocket.send(sendPacket);
 		}
-		
+
 	}
 
-	public static void Jogo(DatagramSocket serverSocket, ArrayList<Jogador> jogadores, byte[] receivedData)
-			throws Exception {
-		CorridaPalavras corridaPalavras = new CorridaPalavras();
-		Boolean alguemGanhou = false;
-
-		byte[] sendData = "Iniciando jogo...".getBytes();
-		System.out.println("Todos os jogadores estão prontos. Iniciando o jogo!");
-
+	public static Jogador JogadorExiste(ArrayList<Jogador> jogadores, InetAddress ipVerificar, int portaVerificar) {
 		for (Jogador jogador : jogadores) {
-			DatagramPacket sendPacket = new DatagramPacket(sendData, sendData.length, jogador.getIp(),
-					jogador.getPort());
-			serverSocket.send(sendPacket);
-		}
-
-		String palavraSelecionada = corridaPalavras.palavrasParaJogadores();
-
-		System.out.println("Palavra selecionada: " + palavraSelecionada);
-
-		String palavraSelecionadaEmbaralhada = Embaralhador.shuffle(palavraSelecionada);
-
-		enviaPalavraEmbaralhada(serverSocket, jogadores, palavraSelecionadaEmbaralhada);
-
-		while (true) {
-			for (int i = 0; i < jogadores.size(); i++) {
-				DatagramPacket receivePacket = new DatagramPacket(receivedData, receivedData.length);
-				serverSocket.receive(receivePacket);
-				String receiveSentence = new String(receivePacket.getData(), 0, receivePacket.getLength()).trim();
-
-				InetAddress ipJogador = receivePacket.getAddress();
-				int portaJogador = receivePacket.getPort();
-
-				if (corridaPalavras.comparaPalavras(palavraSelecionada, receiveSentence)) {
-					alguemGanhou = true;
-					System.out.println("Parabéns! O jogador na Porta " + portaJogador + " acertou a palavra!");
-
-					String mensagemVencedor = "Você acertou a palavra: " + palavraSelecionada + "!";
-					byte[] vencedorData = mensagemVencedor.getBytes();
-					DatagramPacket vencedorPacket = new DatagramPacket(vencedorData, vencedorData.length, ipJogador,
-							portaJogador);
-					serverSocket.send(vencedorPacket);
-					for (Jogador jogador : jogadores) {
-						String mensagemPerdedor = "Você Perdeu! O jogador de ip: " + ipJogador + " e porta: "
-								+ portaJogador + ",acertou primeiro a palavra: " + palavraSelecionada + "!";
-						byte[] perdedorData = mensagemPerdedor.getBytes();
-						if (!jogador.getIp().equals(ipJogador) || jogador.getPort() != portaJogador) {
-							DatagramPacket perdedorPacket = new DatagramPacket(perdedorData, perdedorData.length,
-									jogador.getIp(), jogador.getPort());
-							serverSocket.send(perdedorPacket);
-						}
-					}
-				} else if(!alguemGanhou) {
-					for (Jogador jogador : jogadores) {
-						String perderamTodos = "Você Perdeu! Os dois jogadores erraram";
-						byte[] perderamTodosData = perderamTodos.getBytes();
-						if (!jogador.getIp().equals(ipJogador) || jogador.getPort() != portaJogador) {
-							DatagramPacket perdedorPacket = new DatagramPacket(perderamTodosData,
-									perderamTodosData.length, jogador.getIp(), jogador.getPort());
-							serverSocket.send(perdedorPacket);
-						}
-					}
-				}
-				
-			}
-			limparRecivedData(receivedData);
-			reiniciarJogo(serverSocket, jogadores, receivedData);
-		}
-	}
-
-	public static void reiniciarJogo(DatagramSocket serverSocket, ArrayList<Jogador> jogadores, byte[] receivedData)
-			throws Exception {
-		String mensagemReiniciar = "Quer jogar novamente? Responda com 'Sim' ou 'Não'.";
-		byte[] reiniciarData = mensagemReiniciar.getBytes();
-		for (Jogador jogador : jogadores) {
-			DatagramPacket reiniciarPacket = new DatagramPacket(reiniciarData, reiniciarData.length, jogador.getIp(),
-					jogador.getPort());
-			serverSocket.send(reiniciarPacket);
-		}
-		for (Jogador jogador : jogadores) {
-			DatagramPacket receivePacket = new DatagramPacket(receivedData, receivedData.length);
-			serverSocket.receive(receivePacket);
-			String resposta = new String(receivePacket.getData(), 0, receivePacket.getLength()).trim();
-
-		    System.out.println("JOGADOR " + jogador.getIp() + ":" + jogador.getPort() + " RESPONDEU: " + resposta);
-		    
-			if (resposta.equalsIgnoreCase("Sim")) {
-				jogador.setPronto();
-			} else {
-				jogador.setNaoPronto();
-			}
-			limparRecivedData(receivedData);
-		}
-		// System.out.println("TODOS PRONTOS JOGADORES " + todosProntos(jogadores));
-		if (todosProntos(jogadores)) {
-			System.out.println("Todos os jogadores querem continuar. Reiniciando o jogo!");
-			Jogo(serverSocket, jogadores, receivedData);
-		} else {
-			String mensagemEncerrar = "Nem todos os jogadores quiseram continuar. Encerrando o jogo.";
-			byte[] MensagemEncerrarBytes = mensagemEncerrar.getBytes();
-			for (Jogador jogador : jogadores) {
-				DatagramPacket encerarJogo = new DatagramPacket(MensagemEncerrarBytes, mensagemEncerrar.length(),
-						jogador.getIp(), jogador.getPort());
-				serverSocket.send(encerarJogo);
+			if (jogador.getIp().equals(ipVerificar) && jogador.getPort() == portaVerificar) {
+				return jogador;
 			}
 		}
-	}
-
-	public static boolean todosProntos(ArrayList<Jogador> jogadores) {
-		for (Jogador jogador : jogadores) {
-			if (jogador.getPronto() == false) {
-				return false;
-			}
-		}
-		return true;
+		return null;
 	}
 }

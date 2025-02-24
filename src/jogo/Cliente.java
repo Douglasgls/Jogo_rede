@@ -23,48 +23,48 @@ public class Cliente {
 	public static void conectar(DatagramSocket clientSocket, InetAddress ipAddress, int port, byte[] receivedData,
 			String receiveSentence) throws Exception {
 		limparRecivedData(receivedData);
-		byte[] sendData = "Conectar".getBytes();
-		DatagramPacket sendPacket = new DatagramPacket(sendData, sendData.length, ipAddress, port);
-		clientSocket.send(sendPacket);
+		enviarMensagem(clientSocket, "Conectar", ipAddress, port);
+		String resposta = receberMensagem(clientSocket, receivedData);
+		System.out.println(resposta);
 
-		DatagramPacket receivePacket = new DatagramPacket(receivedData, receivedData.length);
-		clientSocket.receive(receivePacket);
-		receiveSentence = new String(receivePacket.getData(), 0, receivePacket.getLength());
-		System.out.println(receiveSentence);
+		System.out.println("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+		System.out.println(" 🎮 Bem-vindo ao Jogo das Palavras! 🎮 ");
+		System.out.println("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+
 		iniciarJogo(clientSocket, ipAddress, port, receivedData, receiveSentence);
 		limparRecivedData(receivedData);
 	}
 
 	public static void iniciarJogo(DatagramSocket clientSocket, InetAddress ipAddress, int port, byte[] receivedData,
 			String receiveSentence) throws Exception {
-		System.out.println("Pressione Enter para iniciar o jogo");
+		System.out.println(" 🔹 Pressione ENTER para iniciar...");
 		new BufferedReader(new InputStreamReader(System.in)).readLine();
+		enviarMensagem(clientSocket, "Iniciar", ipAddress, port);
 
-		byte[] sendData = "Iniciar".getBytes();
-		DatagramPacket sendPacket = new DatagramPacket(sendData, sendData.length, ipAddress, port);
-		clientSocket.send(sendPacket);
 		limparRecivedData(receivedData);
-		jogo(clientSocket, ipAddress, port, receivedData, receiveSentence);
+		jogoCliente(clientSocket, ipAddress, port, receivedData, receiveSentence);
 		limparRecivedData(receivedData);
 	}
 
-	public static void jogo(DatagramSocket clientSocket, InetAddress ipAddress, int port, byte[] receivedData,
+	public static void jogoCliente(DatagramSocket clientSocket, InetAddress ipAddress, int port, byte[] receivedData,
 			String receiveSentence) throws Exception {
 		BufferedReader keyboardReader = new BufferedReader(new InputStreamReader(System.in));
+		
 		do {
-			DatagramPacket receivePacket = new DatagramPacket(receivedData, receivedData.length);
-			clientSocket.receive(receivePacket);
-			receiveSentence = new String(receivePacket.getData(), 0, receivePacket.getLength()).trim();
-			
-			System.out.println(receiveSentence);
-			
-			if(receiveSentence.equals("Nem todos os jogadores quiseram continuar. Encerrando o jogo.")) {
-				clientSocket.close(); 
-				return;
-			}
+			receiveSentence = receberMensagem(clientSocket, receivedData);
 
+			if (receiveSentence.startsWith("⏳ Aguardando outro jogador para iniciar...")) {
+				System.out.println(" " + receiveSentence);
+			} else if (receiveSentence.startsWith("Iniciando jogo...")) {
+				System.out.println();
+				System.out.println("##########" + " VAMOS JOGAR " + "##########");
+				System.out.println();
+			} else {
+				System.out.println(receiveSentence);
+			}
+			
 			if (receiveSentence.startsWith("Desenbaralhe a palavra: ")) {
-				System.out.println("Digite o texto a ser enviado");
+				System.out.println("⌨️ Digite sua resposta: ");
 				String sentence = keyboardReader.readLine();
 
 				byte[] resposta = sentence.getBytes();
@@ -73,41 +73,50 @@ public class Cliente {
 				clientSocket.send(respostaPacket);
 			}
 			limparRecivedData(receivedData);
-		} while(!receiveSentence.startsWith("Você Perdeu!") && !receiveSentence.startsWith("Você acertou a palavra:") 
-				&& !receiveSentence.startsWith("Nem todos os jogadores quiseram continuar. Encerrando o jogo.") );
-		
+		} while (!receiveSentence.startsWith("Você Perdeu!") && !receiveSentence.startsWith("Você acertou a palavra:")
+				&& !receiveSentence.startsWith("Nem todos os jogadores quiseram continuar. Encerrando o jogo."));
+
 		if (!receiveSentence.equals("Nem todos os jogadores quiseram continuar. Encerrando o jogo.")) {
 			reiniciarJogo(clientSocket, ipAddress, port, receivedData);
 		}
-		
 		limparRecivedData(receivedData);
-	
+	}
+
+	public static void reiniciarJogo(DatagramSocket clientSocket, InetAddress ipAddress, int port, byte[] receivedData)
+			throws Exception {
+		
+		BufferedReader keyboardReader = new BufferedReader(new InputStreamReader(System.in));
+
+		String mensagemReinicio = receberMensagem(clientSocket, receivedData);
+		System.out.println(mensagemReinicio);
+		System.out.println("Digite sua resposta (Sim/Não):");
+		
+		String resposta = keyboardReader.readLine();
+		enviarMensagem(clientSocket, resposta, ipAddress, port);
+
+		if (resposta.equalsIgnoreCase("Sim")) {
+			jogoCliente(clientSocket, ipAddress, port, receivedData, null);
+		} else {
+			System.out.println("Jogo encerrado.");
+		}
+		limparRecivedData(receivedData);
+	}
+
+	private static void enviarMensagem(DatagramSocket socket, String mensagem, InetAddress ip, int port)
+			throws Exception {
+		byte[] sendData = mensagem.getBytes();
+		DatagramPacket sendPacket = new DatagramPacket(sendData, sendData.length, ip, port);
+		socket.send(sendPacket);
+	}
+
+	private static String receberMensagem(DatagramSocket socket, byte[] buffer) throws Exception {
+		DatagramPacket receivePacket = new DatagramPacket(buffer, buffer.length);
+		socket.receive(receivePacket);
+		return new String(receivePacket.getData(), 0, receivePacket.getLength()).trim();
 	}
 
 	public static void limparRecivedData(byte[] receivedData) {
 		Arrays.fill(receivedData, (byte) 0);
-	}
-
-	public static void  reiniciarJogo(DatagramSocket clientSocket, InetAddress ipAddress, int port, byte[] receivedData)
-			throws Exception {
-		BufferedReader keyboardReader = new BufferedReader(new InputStreamReader(System.in));
-		DatagramPacket receivePacket = new DatagramPacket(receivedData, receivedData.length);
-		clientSocket.receive(receivePacket);
-		String mensagemReinicio = new String(receivePacket.getData(), 0, receivePacket.getLength()).trim();
-		System.out.println(mensagemReinicio);
-		System.out.println("Digite sua resposta (Sim/Não):");
-		String resposta = keyboardReader.readLine();
-		byte[] respostaData = resposta.getBytes();
-		DatagramPacket respostaPacket = new DatagramPacket(respostaData, respostaData.length, ipAddress, port);
-		clientSocket.send(respostaPacket);
-		limparRecivedData(receivedData);
-		// System.out.println("RESPOSTA" + resposta);
-		if (resposta.equalsIgnoreCase("Sim")) {
-			jogo(clientSocket, ipAddress, port, receivedData, "");
-		} else {
-			System.out.println("Nem todos os jogadores quiseram continuar. Encerrando o jogo.");
-		}
-		limparRecivedData(receivedData);
 	}
 
 }
