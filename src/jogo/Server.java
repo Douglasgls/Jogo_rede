@@ -46,6 +46,7 @@ public class Server {
 				}
 			}
 		}
+		limparRecivedData(receivedData);
 	}
 
 	public static Jogador conectar(DatagramSocket serverSocket, DatagramPacket receivePacket) throws Exception {
@@ -93,7 +94,7 @@ public class Server {
 					jogador.getPort());
 			serverSocket.send(sendPacket);
 		}
-
+		
 	}
 
 	public static void Jogo(DatagramSocket serverSocket, ArrayList<Jogador> jogadores, byte[] receivedData)
@@ -144,41 +145,70 @@ public class Server {
 							serverSocket.send(perdedorPacket);
 						}
 					}
-					// Criar Logica de enviar mensagem para outros clientes avisando que eles
-					// perderam
-					break;
+					// break;
+				} else {
+					for (Jogador jogador : jogadores) {
+						String perderamTodos = "Você Perdeu! Os dois jogadores erraram";
+						byte[] perderamTodosData = perderamTodos.getBytes();
+						if (!jogador.getIp().equals(ipJogador) || jogador.getPort() != portaJogador) {
+							DatagramPacket perdedorPacket = new DatagramPacket(perderamTodosData,
+									perderamTodosData.length, jogador.getIp(), jogador.getPort());
+							serverSocket.send(perdedorPacket);
+						}
+					}
 				}
 			}
-		reiniciarJogo(serverSocket, jogadores, receivedData);
+			limparRecivedData(receivedData);
+			reiniciarJogo(serverSocket, jogadores, receivedData);
 		}
 	}
-	public static void reiniciarJogo(DatagramSocket serverSocket, ArrayList<Jogador> jogadores, byte[] receivedData) throws Exception {
-	    String mensagemReiniciar = "Quer jogar novamente? Responda com 'Sim' ou 'Não'.";
-	    byte[] reiniciarData = mensagemReiniciar.getBytes();
-	    for (Jogador jogador : jogadores) {
-	        DatagramPacket reiniciarPacket = new DatagramPacket(reiniciarData, reiniciarData.length, jogador.getIp(), jogador.getPort());
-	        serverSocket.send(reiniciarPacket);
-	    }
-	    int jogadoresQueQueremContinuar = 0;
-	    for (int i = -1; i < jogadores.size(); i++) {
-	        DatagramPacket receivePacket = new DatagramPacket(receivedData, receivedData.length);
-	        serverSocket.receive(receivePacket);
-	        String resposta = new String(receivePacket.getData(), 0, receivePacket.getLength()).trim();
-	        if (resposta.equalsIgnoreCase("Sim")) {
-	            jogadoresQueQueremContinuar++;
-	        }
-	        limparRecivedData(receivedData);
-	    }
-	    if (jogadoresQueQueremContinuar == jogadores.size()) {
-	        System.out.println("Todos os jogadores querem continuar. Reiniciando o jogo!");
-	        Jogo(serverSocket, jogadores, receivedData);
-	    } else {
-	    	String mensagemEncerrar = "Nem todos os jogadores quiseram continuar. Encerrando o jogo.";
-	        System.out.println("Nem todos os jogadores quiseram continuar. Encerrando o jogo.");
-	        for (Jogador jogador : jogadores) {
-		        DatagramPacket encerarJogo = new DatagramPacket(mensagemEncerrar.getBytes(), mensagemEncerrar.getBytes().length, jogador.getIp(), jogador.getPort());
-		        serverSocket.send(encerarJogo);
-		    }
-	    }
+
+	public static void reiniciarJogo(DatagramSocket serverSocket, ArrayList<Jogador> jogadores, byte[] receivedData)
+			throws Exception {
+		String mensagemReiniciar = "Quer jogar novamente? Responda com 'Sim' ou 'Não'.";
+		byte[] reiniciarData = mensagemReiniciar.getBytes();
+		for (Jogador jogador : jogadores) {
+			DatagramPacket reiniciarPacket = new DatagramPacket(reiniciarData, reiniciarData.length, jogador.getIp(),
+					jogador.getPort());
+			serverSocket.send(reiniciarPacket);
+		}
+		int jogadoresQueQueremContinuar = 0;
+
+		for (Jogador jogador : jogadores) {
+			DatagramPacket receivePacket = new DatagramPacket(receivedData, receivedData.length);
+			serverSocket.receive(receivePacket);
+			String resposta = new String(receivePacket.getData(), 0, receivePacket.getLength()).trim();
+
+		    System.out.println("JOGADOR " + jogador.getIp() + ":" + jogador.getPort() + " RESPONDEU: " + resposta);
+		    
+			if (resposta.equalsIgnoreCase("Sim")) {
+				jogador.setPronto();
+			} else {
+				jogador.setNaoPronto();
+			}
+			limparRecivedData(receivedData);
+		}
+		System.out.println("TODOS PRONTOS JOGADORES " + todosProntos(jogadores));
+		if (todosProntos(jogadores)) {
+			System.out.println("Todos os jogadores querem continuar. Reiniciando o jogo!");
+			Jogo(serverSocket, jogadores, receivedData);
+		} else {
+			String mensagemEncerrar = "Nem todos os jogadores quiseram continuar. Encerrando o jogo.";
+			byte[] MensagemEncerrarBytes = mensagemEncerrar.getBytes();
+			for (Jogador jogador : jogadores) {
+				DatagramPacket encerarJogo = new DatagramPacket(MensagemEncerrarBytes, mensagemEncerrar.length(),
+						jogador.getIp(), jogador.getPort());
+				serverSocket.send(encerarJogo);
+			}
+		}
+	}
+
+	public static boolean todosProntos(ArrayList<Jogador> jogadores) {
+		for (Jogador jogador : jogadores) {
+			if (jogador.getPronto() == false) {
+				return false;
+			}
+		}
+		return true;
 	}
 }

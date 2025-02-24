@@ -36,4 +36,8 @@ public class Jogador {
 	public void setPronto() {
 		this.pronto = true;
 	}
+	
+	public void setNaoPronto() {
+		this.pronto = false;
+	}
 }
